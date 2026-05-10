@@ -9,6 +9,7 @@ export default function PromotionsPage() {
   const { promotions, mealDeals, openModal, closeModal, activeModal, addToast, updatePromotion, updateMealDeal, products } = usePosStore();
   const [editPromo, setEditPromo] = useState<Promotion | null>(null);
   const [editDeal, setEditDeal] = useState<MealDeal | null>(null);
+  const [activeTab, setActiveTab] = useState<'mains' | 'sides' | 'drinks'>('mains');
 
   const deletePromo = (id: string) => {
     usePosStore.setState(s => ({ promotions: s.promotions.filter(p => p.id !== id) }));
@@ -274,17 +275,20 @@ export default function PromotionsPage() {
             <div className="flex flex-col h-[280px]">
               <div className="flex gap-1 mb-2 p-1 rounded-lg bg-[var(--color-slate-900)]">
                 {(['mains', 'sides', 'drinks'] as const).map(t => (
-                  <button key={t} onClick={() => (window as any)._activeEditTab = t} className="flex-1 py-1 rounded text-[9px] font-bold uppercase tracking-wider text-[var(--color-slate-500)] hover:text-white">
+                  <button 
+                    key={t} 
+                    onClick={() => setActiveTab(t)} 
+                    className={`flex-1 py-1 rounded text-[9px] font-bold uppercase tracking-wider transition-colors ${activeTab === t ? 'bg-[var(--color-slate-800)] text-white' : 'text-[var(--color-slate-500)] hover:text-white'}`}
+                  >
                     {t}
                   </button>
                 ))}
               </div>
               <div className="flex-1 overflow-y-auto border border-[var(--color-surface-glass-border)] rounded-lg p-2 bg-[var(--color-surface-overlay)] space-y-1">
                 {products.map(p => {
-                  const tab = (window as any)._activeEditTab || 'mains';
-                  const isSel = (editDeal[tab] || []).includes(p.id);
+                  const isSel = (editDeal[activeTab] || []).includes(p.id);
                   return (
-                    <button key={p.id} onClick={() => toggleDealProduct(p.id, tab)} className={`w-full flex items-center justify-between p-2 rounded text-[11px] ${isSel ? 'bg-[var(--color-emerald)] text-white' : 'text-[var(--color-slate-400)] hover:bg-white/5'}`}>
+                    <button key={p.id} onClick={() => toggleDealProduct(p.id, activeTab)} className={`w-full flex items-center justify-between p-2 rounded text-[11px] ${isSel ? 'bg-[var(--color-emerald)] text-white' : 'text-[var(--color-slate-400)] hover:bg-white/5'}`}>
                       <span className="truncate">{p.name}</span>
                       {isSel && <Check size={12} />}
                     </button>
