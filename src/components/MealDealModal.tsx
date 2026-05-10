@@ -5,13 +5,15 @@ import { usePosStore } from '../store';
 import type { MealDeal, Product } from '../types';
 
 export default function MealDealModal() {
-  const { products, addMealDeal, closeModal, addToast } = usePosStore();
-  const [name, setName] = useState('');
-  const [price, setPrice] = useState(3.50);
+  const { products, addMealDeal, updateMealDeal, closeModal, addToast, modalData } = usePosStore();
   
-  const [mains, setMains] = useState<string[]>([]);
-  const [sides, setSides] = useState<string[]>([]);
-  const [drinks, setDrinks] = useState<string[]>([]);
+  const isEdit = !!modalData;
+  const [name, setName] = useState(modalData?.name || '');
+  const [price, setPrice] = useState(modalData?.price || 3.50);
+  
+  const [mains, setMains] = useState<string[]>(modalData?.mains || []);
+  const [sides, setSides] = useState<string[]>(modalData?.sides || []);
+  const [drinks, setDrinks] = useState<string[]>(modalData?.drinks || []);
   
   const [activeTab, setActiveTab] = useState<'mains' | 'sides' | 'drinks'>('mains');
   const [search, setSearch] = useState('');
@@ -28,23 +30,33 @@ export default function MealDealModal() {
   const handleSubmit = () => {
     if (!name || !mains.length || !sides.length || !drinks.length) return;
 
-    const deal: MealDeal = {
-      id: `MD-${Date.now()}`,
-      name,
-      price,
-      mains,
-      sides,
-      drinks,
-      active: true
-    };
-
-    addMealDeal(deal);
-    addToast(`Meal Deal "${name}" created`, 'success');
+    if (isEdit) {
+      updateMealDeal(modalData.id, {
+        name,
+        price,
+        mains,
+        sides,
+        drinks
+      });
+      addToast(`Meal Deal "${name}" updated`, 'success');
+    } else {
+      const deal: MealDeal = {
+        id: `MD-${Date.now()}`,
+        name,
+        price,
+        mains,
+        sides,
+        drinks,
+        active: true
+      };
+      addMealDeal(deal);
+      addToast(`Meal Deal "${name}" created`, 'success');
+    }
     closeModal();
   };
 
   return (
-    <Modal title="Create Meal Deal Bundle" width={640}>
+    <Modal title={isEdit ? "Edit Meal Deal Bundle" : "Create Meal Deal Bundle"} width={640}>
       <div className="space-y-6">
         <div className="grid grid-cols-2 gap-6">
           <div className="space-y-4">
@@ -108,7 +120,7 @@ export default function MealDealModal() {
         <div className="flex justify-end gap-3 pt-4 border-t border-[var(--color-surface-glass-border)]">
           <button onClick={closeModal} className="px-6 py-2.5 rounded-[var(--radius-lg)] text-[var(--text-sm)] font-bold text-[var(--color-slate-400)]">Cancel</button>
           <button onClick={handleSubmit} disabled={!name || !mains.length || !sides.length || !drinks.length} className="px-8 py-2.5 rounded-[var(--radius-lg)] bg-[var(--color-emerald)] text-white text-[var(--text-sm)] font-bold shadow-glow-emerald disabled:opacity-50">
-            Activate Bundle
+            {isEdit ? "Update Bundle" : "Activate Bundle"}
           </button>
         </div>
       </div>

@@ -421,27 +421,81 @@ export const usePosStore = create<PosStore>()(
 
       /* Computed */
       calculateDiscounts: () => {
-        const { cart, promotions } = get();
-        let totalPromoDiscount = 0;
+        const { cart, promotions, mealDeals } = get();
+        let totalDiscount = 0;
 
-        // Apply Multi-buy and simple promotions
-        promotions.filter(p => p.active).forEach(promo => {
-          const matchingItems = cart.filter(item => promo.productIds.includes(item.product.id));
-          const totalQty = matchingItems.reduce((s, i) => s + i.quantity, 0);
+        // Create a working copy of the cart items to track "consumed" quantities.
+        // We sort by price descending to ensure customers get the best discount 
+        // (most expensive items are bundled first).
+        let workingItems = cart.flatMap(item => {
+          const unitPrice = item.product.price - (item.discount / item.quantity);
+          return Array(item.quantity).fill(null).map(() => ({
+            id: item.product.id,
+            price: unitPrice,
+            consumed: false
+          }));
+        }).sort((a, b) => b.price - a.price);
 
-          if (totalQty >= promo.requiredQty) {
-            const occurrences = Math.floor(totalQty / promo.requiredQty);
-            
-            if (promo.type === 'multi-buy' && promo.promoPrice) {
-              const normalPrice = matchingItems[0].product.price * promo.requiredQty;
-              totalPromoDiscount += (normalPrice - promo.promoPrice) * occurrences;
-            } else if (promo.type === 'bogo' && promo.freeQty) {
-              totalPromoDiscount += (matchingItems[0].product.price * promo.freeQty) * occurrences;
+        // 1. Process Meal Deals First (Highest Complexity/Value)
+        mealDeals.filter(d => d.active).forEach(deal => {
+          const mains = deal.mains || [];
+          const sides = deal.sides || [];
+          const drinks = deal.drinks || [];
+
+          while (true) {
+            const main = workingItems.find(i => !i.consumed && mains.includes(i.id));
+            const side = workingItems.find(i => !i.consumed && sides.includes(i.id));
+            const drink = workingItems.find(i => !i.consumed && drinks.includes(i.id));
+
+            if (main && side && drink) {
+              const originalTotal = main.price + side.price + drink.price;
+              const saving = Math.max(0, originalTotal - deal.price);
+              totalDiscount += saving;
+
+              main.consumed = true;
+              side.consumed = true;
+              drink.consumed = true;
+            } else {
+              break;
             }
           }
         });
 
-        return totalPromoDiscount;
+        // 2. Process Multi-buy / BOGO Promotions on remaining items
+        promotions.filter(p => p.active).forEach(promo => {
+          const eligible = workingItems.filter(i => !i.consumed && promo.productIds.includes(i.id));
+          
+          if (eligible.length >= promo.requiredQty) {
+            const occurrences = Math.floor(eligible.length / promo.requiredQty);
+            
+            if (promo.type === 'multi-buy' && promo.promoPrice) {
+              // Calculate saving for each occurrence
+              for (let i = 0; i < occurrences; i++) {
+                const bundle = eligible.slice(i * promo.requiredQty, (i + 1) * promo.requiredQty);
+                const originalTotal = bundle.reduce((sum, item) => sum + item.price, 0);
+                totalDiscount += Math.max(0, originalTotal - promo.promoPrice);
+                
+                // Mark as consumed
+                bundle.forEach(item => item.consumed = true);
+              }
+            } else if (promo.type === 'bogo') {
+              // Buy one get one free (effectively 2 for price of 1)
+              for (let i = 0; i < occurrences; i++) {
+                const bundle = eligible.slice(i * 2, (i + 1) * 2);
+                // Discount the cheapest item in the pair (bundle is sorted desc, so it's the second)
+                totalDiscount += bundle[1].price;
+                bundle.forEach(item => item.consumed = true);
+              }
+            } else if (promo.type === 'percentage' && promo.discountPercent) {
+              eligible.forEach(item => {
+                totalDiscount += item.price * (promo.discountPercent! / 100);
+                item.consumed = true;
+              });
+            }
+          }
+        });
+
+        return totalDiscount;
       },
       cartSubtotal: () => {
         const baseSubtotal = get().cart.reduce((s, i) => s + (i.product.price * i.quantity - i.discount), 0);

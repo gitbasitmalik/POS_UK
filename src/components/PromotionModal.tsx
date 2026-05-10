@@ -6,12 +6,14 @@ import { usePosStore } from '../store';
 import type { Product, Promotion, PromoType } from '../types';
 
 export default function PromotionModal() {
-  const { products, addPromotion, closeModal, addToast } = usePosStore();
-  const [name, setName] = useState('');
-  const [type, setType] = useState<PromoType>('multi-buy');
-  const [requiredQty, setRequiredQty] = useState(3);
-  const [promoPrice, setPromoPrice] = useState(5.00);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const { products, addPromotion, updatePromotion, closeModal, addToast, modalData } = usePosStore();
+  
+  const isEdit = !!modalData;
+  const [name, setName] = useState(modalData?.name || '');
+  const [type, setType] = useState<PromoType>(modalData?.type || 'multi-buy');
+  const [requiredQty, setRequiredQty] = useState(modalData?.requiredQty || 3);
+  const [promoPrice, setPromoPrice] = useState(modalData?.promoPrice || 5.00);
+  const [selectedIds, setSelectedIds] = useState<string[]>(modalData?.productIds || []);
   const [search, setSearch] = useState('');
 
   const filteredProducts = products.filter(p => 
@@ -26,26 +28,36 @@ export default function PromotionModal() {
   const handleSubmit = () => {
     if (!name || selectedIds.length === 0) return;
 
-    const promo: Promotion = {
-      id: `PRM-${Date.now()}`,
-      name,
-      type,
-      productIds: selectedIds,
-      requiredQty,
-      promoPrice: type === 'multi-buy' ? promoPrice : undefined,
-      freeQty: type === 'bogo' ? 1 : undefined,
-      active: true,
-      startDate: new Date().toISOString(),
-      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days
-    };
-
-    addPromotion(promo);
-    addToast(`Promotion "${name}" activated`, 'success');
+    if (isEdit) {
+      updatePromotion(modalData.id, {
+        name,
+        type,
+        productIds: selectedIds,
+        requiredQty,
+        promoPrice: type === 'multi-buy' ? promoPrice : undefined,
+      });
+      addToast(`Promotion "${name}" updated`);
+    } else {
+      const promo: Promotion = {
+        id: `PRM-${Date.now()}`,
+        name,
+        type,
+        productIds: selectedIds,
+        requiredQty,
+        promoPrice: type === 'multi-buy' ? promoPrice : undefined,
+        freeQty: type === 'bogo' ? 1 : undefined,
+        active: true,
+        startDate: new Date().toISOString(),
+        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days
+      };
+      addPromotion(promo);
+      addToast(`Promotion "${name}" activated`, 'success');
+    }
     closeModal();
   };
 
   return (
-    <Modal title="Configure New Promotion" width={600}>
+    <Modal title={isEdit ? "Edit Promotion" : "Configure New Promotion"} width={600}>
       <div className="space-y-6">
         <div className="grid grid-cols-2 gap-6">
           <div className="space-y-4">
@@ -142,7 +154,7 @@ export default function PromotionModal() {
             disabled={!name || selectedIds.length === 0}
             className="px-8 py-2.5 rounded-[var(--radius-lg)] bg-[var(--color-indigo)] text-white text-[var(--text-sm)] font-bold shadow-glow-indigo disabled:opacity-50"
           >
-            Create Promotion
+            {isEdit ? "Update Promotion" : "Create Promotion"}
           </button>
         </div>
       </div>

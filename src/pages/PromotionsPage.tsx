@@ -1,15 +1,10 @@
-import { useState } from 'react';
 import { usePosStore } from '../store';
 import { motion } from 'framer-motion';
-import { Tag, Plus, Trash2, Edit3, ShoppingCart, Percent, Zap, Utensils, Power, PowerOff, Check } from 'lucide-react';
-import Modal from '../components/Modal';
+import { Tag, Plus, Trash2, Edit3, Percent, Zap, Utensils, Power, PowerOff } from 'lucide-react';
 import type { Promotion, MealDeal } from '../types';
 
 export default function PromotionsPage() {
-  const { promotions, mealDeals, openModal, closeModal, activeModal, addToast, updatePromotion, updateMealDeal, products } = usePosStore();
-  const [editPromo, setEditPromo] = useState<Promotion | null>(null);
-  const [editDeal, setEditDeal] = useState<MealDeal | null>(null);
-  const [activeTab, setActiveTab] = useState<'mains' | 'sides' | 'drinks'>('mains');
+  const { promotions, mealDeals, openModal, addToast, updatePromotion, updateMealDeal } = usePosStore();
 
   const deletePromo = (id: string) => {
     usePosStore.setState(s => ({ promotions: s.promotions.filter(p => p.id !== id) }));
@@ -32,44 +27,6 @@ export default function PromotionsPage() {
     }));
     addToast(`${deal.name} ${deal.active ? 'deactivated' : 'activated'}`);
   };
-
-  const saveEditPromo = () => {
-    if (!editPromo) return;
-    updatePromotion(editPromo.id, editPromo);
-    addToast(`${editPromo.name} updated`);
-    setEditPromo(null);
-    closeModal();
-  };
-
-  const saveEditDeal = () => {
-    if (!editDeal) return;
-    updateMealDeal(editDeal.id, editDeal);
-    addToast(`${editDeal.name} updated`);
-    setEditDeal(null);
-    closeModal();
-  };
-
-  const togglePromoProduct = (productId: string) => {
-    if (!editPromo) return;
-    const exists = editPromo.productIds.includes(productId);
-    setEditPromo({
-      ...editPromo,
-      productIds: exists ? editPromo.productIds.filter(id => id !== productId) : [...editPromo.productIds, productId]
-    });
-  };
-
-  const toggleDealProduct = (productId: string, type: 'mains' | 'sides' | 'drinks') => {
-    if (!editDeal) return;
-    const list = editDeal[type] || [];
-    const exists = list.includes(productId);
-    setEditDeal({
-      ...editDeal,
-      [type]: exists ? list.filter(id => id !== productId) : [...list, productId]
-    });
-  };
-
-  const inputStyle: React.CSSProperties = { height: 38, padding: '0 12px', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-surface-glass-border)', background: 'var(--color-surface-overlay)', color: 'var(--color-slate-200)', fontSize: 'var(--text-sm)', fontFamily: 'var(--font-sans)', outline: 'none', width: '100%' };
-  const labelStyle: React.CSSProperties = { fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--color-slate-400)', textTransform: 'uppercase' };
 
   return (
     <div className="flex-1 p-8 h-full flex flex-col gap-8 overflow-y-auto custom-scrollbar">
@@ -147,7 +104,7 @@ export default function PromotionsPage() {
                     <button onClick={() => togglePromoActive(promo)} className={`p-2 rounded-lg ${promo.active ? 'bg-amber-500/10 text-amber-400 hover:bg-amber-500 hover:text-white' : 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white'} transition-colors cursor-pointer`} title={promo.active ? 'Deactivate' : 'Activate'}>
                       {promo.active ? <PowerOff size={16} /> : <Power size={16} />}
                     </button>
-                    <button onClick={() => { setEditPromo({ ...promo }); openModal('edit-promotion'); }} className="p-2 rounded-lg bg-[var(--color-slate-800)] text-[var(--color-slate-400)] hover:text-[var(--color-indigo-light)] cursor-pointer transition-colors">
+                    <button onClick={() => openModal('promotion', promo)} className="p-2 rounded-lg bg-[var(--color-slate-800)] text-[var(--color-slate-400)] hover:text-[var(--color-indigo-light)] cursor-pointer transition-colors">
                       <Edit3 size={16} />
                     </button>
                     <button onClick={() => deletePromo(promo.id)} className="p-2 rounded-lg bg-[var(--color-rose-bg)] text-[var(--color-rose)] hover:bg-[var(--color-rose)] hover:text-white transition-colors cursor-pointer"><Trash2 size={16} /></button>
@@ -188,7 +145,7 @@ export default function PromotionsPage() {
                     <button onClick={() => toggleDealActive(deal)} className={`p-2 rounded-lg ${deal.active ? 'bg-amber-500/10 text-amber-400 hover:bg-amber-500 hover:text-white' : 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white'} transition-colors cursor-pointer`} title={deal.active ? 'Deactivate' : 'Activate'}>
                       {deal.active ? <PowerOff size={16} /> : <Power size={16} />}
                     </button>
-                    <button onClick={() => { setEditDeal({ ...deal }); openModal('edit-meal-deal'); }} className="p-2 rounded-lg bg-[var(--color-slate-800)] text-[var(--color-slate-400)] hover:text-[var(--color-emerald)] cursor-pointer transition-colors">
+                    <button onClick={() => openModal('meal-deal', deal)} className="p-2 rounded-lg bg-[var(--color-slate-800)] text-[var(--color-slate-400)] hover:text-[var(--color-emerald)] cursor-pointer transition-colors">
                       <Edit3 size={16} />
                     </button>
                     <button onClick={() => deleteMealDeal(deal.id)} className="p-2 rounded-lg bg-[var(--color-rose-bg)] text-[var(--color-rose)] hover:bg-[var(--color-rose)] hover:text-white transition-colors cursor-pointer"><Trash2 size={16} /></button>
@@ -199,110 +156,6 @@ export default function PromotionsPage() {
           </div>
         </section>
       </div>
-
-      {/* Edit Promotion Modal */}
-      {activeModal === 'edit-promotion' && editPromo && (
-        <Modal title="Edit Promotion" width={600}>
-          <div className="grid grid-cols-2 gap-6">
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1">
-                <label style={labelStyle}>Name</label>
-                <input type="text" value={editPromo.name} onChange={(e) => setEditPromo({ ...editPromo, name: e.target.value })} style={inputStyle} />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col gap-1">
-                  <label style={labelStyle}>Type</label>
-                  <select value={editPromo.type} onChange={(e) => setEditPromo({ ...editPromo, type: e.target.value as any })} style={inputStyle}>
-                    <option value="multi-buy">Multi-Buy</option>
-                    <option value="bogo">Buy One Get One</option>
-                    <option value="percentage">Percentage Off</option>
-                  </select>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label style={labelStyle}>Required Qty</label>
-                  <input type="number" value={editPromo.requiredQty} onChange={(e) => setEditPromo({ ...editPromo, requiredQty: +e.target.value })} style={{ ...inputStyle, fontFamily: 'var(--font-mono)' }} />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col gap-1">
-                  <label style={labelStyle}>Price (£)</label>
-                  <input type="number" step="0.01" value={editPromo.promoPrice || ''} onChange={(e) => setEditPromo({ ...editPromo, promoPrice: +e.target.value })} style={{ ...inputStyle, fontFamily: 'var(--font-mono)' }} />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label style={labelStyle}>End Date</label>
-                  <input type="date" value={editPromo.endDate?.slice(0,10)} onChange={(e) => setEditPromo({ ...editPromo, endDate: new Date(e.target.value).toISOString() })} style={inputStyle} />
-                </div>
-              </div>
-            </div>
-            <div className="flex flex-col gap-2">
-              <label style={labelStyle}>Participating Products ({editPromo.productIds.length})</label>
-              <div className="flex-1 overflow-y-auto border border-[var(--color-surface-glass-border)] rounded-lg p-2 bg-[var(--color-surface-overlay)] space-y-1" style={{ maxHeight: '200px' }}>
-                {products.map(p => (
-                  <button key={p.id} onClick={() => togglePromoProduct(p.id)} className={`w-full flex items-center justify-between p-2 rounded text-[11px] ${editPromo.productIds.includes(p.id) ? 'bg-[var(--color-indigo)] text-white' : 'text-[var(--color-slate-400)] hover:bg-white/5'}`}>
-                    <span className="truncate">{p.name}</span>
-                    {editPromo.productIds.includes(p.id) && <Check size={12} />}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-          <div className="flex justify-end gap-3 mt-6">
-            <button onClick={() => { setEditPromo(null); closeModal(); }} style={{ padding: '8px 20px', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-surface-glass-border)', background: 'transparent', color: 'var(--color-slate-300)', fontSize: 'var(--text-sm)', fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
-            <motion.button whileHover={{ scale: 1.02 }} onClick={saveEditPromo} style={{ padding: '8px 24px', borderRadius: 'var(--radius-md)', border: 'none', background: 'var(--color-indigo)', color: 'white', fontSize: 'var(--text-sm)', fontWeight: 600, cursor: 'pointer' }}>Save Changes</motion.button>
-          </div>
-        </Modal>
-      )}
-
-      {/* Edit Meal Deal Modal */}
-      {activeModal === 'edit-meal-deal' && editDeal && (
-        <Modal title="Edit Meal Deal Bundle" width={600}>
-          <div className="grid grid-cols-2 gap-6">
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1">
-                <label style={labelStyle}>Name</label>
-                <input type="text" value={editDeal.name} onChange={(e) => setEditDeal({ ...editDeal, name: e.target.value })} style={inputStyle} />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label style={labelStyle}>Fixed Price (£)</label>
-                <input type="number" step="0.01" value={editDeal.price} onChange={(e) => setEditDeal({ ...editDeal, price: +e.target.value })} style={{ ...inputStyle, fontFamily: 'var(--font-mono)' }} />
-              </div>
-              <div className="p-3 rounded-lg bg-[var(--color-emerald-bg)]/10 border border-[var(--color-emerald)]/20 text-[11px]">
-                <div className="flex justify-between mb-1 text-[var(--color-slate-400)]">Mains: <strong className="text-white">{(editDeal.mains || []).length}</strong></div>
-                <div className="flex justify-between mb-1 text-[var(--color-slate-400)]">Sides: <strong className="text-white">{(editDeal.sides || []).length}</strong></div>
-                <div className="flex justify-between text-[var(--color-slate-400)]">Drinks: <strong className="text-white">{(editDeal.drinks || []).length}</strong></div>
-              </div>
-            </div>
-            <div className="flex flex-col h-[280px]">
-              <div className="flex gap-1 mb-2 p-1 rounded-lg bg-[var(--color-slate-900)]">
-                {(['mains', 'sides', 'drinks'] as const).map(t => (
-                  <button 
-                    key={t} 
-                    onClick={() => setActiveTab(t)} 
-                    className={`flex-1 py-1 rounded text-[9px] font-bold uppercase tracking-wider transition-colors ${activeTab === t ? 'bg-[var(--color-slate-800)] text-white' : 'text-[var(--color-slate-500)] hover:text-white'}`}
-                  >
-                    {t}
-                  </button>
-                ))}
-              </div>
-              <div className="flex-1 overflow-y-auto border border-[var(--color-surface-glass-border)] rounded-lg p-2 bg-[var(--color-surface-overlay)] space-y-1">
-                {products.map(p => {
-                  const isSel = (editDeal[activeTab] || []).includes(p.id);
-                  return (
-                    <button key={p.id} onClick={() => toggleDealProduct(p.id, activeTab)} className={`w-full flex items-center justify-between p-2 rounded text-[11px] ${isSel ? 'bg-[var(--color-emerald)] text-white' : 'text-[var(--color-slate-400)] hover:bg-white/5'}`}>
-                      <span className="truncate">{p.name}</span>
-                      {isSel && <Check size={12} />}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-          <div className="flex justify-end gap-3 mt-6">
-            <button onClick={() => { setEditDeal(null); closeModal(); }} style={{ padding: '8px 20px', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-surface-glass-border)', background: 'transparent', color: 'var(--color-slate-300)', fontSize: 'var(--text-sm)', fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
-            <motion.button whileHover={{ scale: 1.02 }} onClick={saveEditDeal} style={{ padding: '8px 24px', borderRadius: 'var(--radius-md)', border: 'none', background: 'var(--color-emerald)', color: 'white', fontSize: 'var(--text-sm)', fontWeight: 600, cursor: 'pointer' }}>Save Changes</motion.button>
-          </div>
-        </Modal>
-      )}
     </div>
   );
 }
